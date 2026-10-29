@@ -1,7 +1,7 @@
 server:
   port: 8080
   servlet:
-    context-path: /be_aifile
+    context-path: /be_aifile/api/v1/
 
 spring:
   datasource:
@@ -16,7 +16,7 @@ spring:
         physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
     show-sql: true
 jwt:
-  secret: "5211ab3263d6c56a7af652d9a49999c90376ec1dc7819e8af80ea8f7fef05691"
+  signerkey: "5211ab3263d6c56a7af652d9a49999c90376ec1dc7819e8af80ea8f7fef05691"
   expiration-days: 7
   valid-duration: 3600 # in second
   refreshable-duration: 36000 # in second(demo)
