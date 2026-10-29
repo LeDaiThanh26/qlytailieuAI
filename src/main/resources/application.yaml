@@ -1,0 +1,22 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /be_aifile
+
+spring:
+  datasource:
+    url: ${DBMS_CONNECTION:jdbc:mysql://localhost:3306/be_aifile}
+    driverClassName: "com.mysql.cj.jdbc.Driver"
+    username: ${DBMS_USERNAME:root}
+    password: ${DBMS_PASSWORD:123456}
+  jpa:
+    hibernate:
+      ddl-auto: update
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+    show-sql: true
+jwt:
+  secret: "5211ab3263d6c56a7af652d9a49999c90376ec1dc7819e8af80ea8f7fef05691"
+  expiration-days: 7
+  valid-duration: 3600 # in second
+  refreshable-duration: 36000 # in second(demo)
