@@ -5,8 +5,6 @@ import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 import java.time.LocalDateTime;
-import java.math.BigDecimal;
-
 
 @Getter
 @Setter
@@ -15,32 +13,34 @@ import java.math.BigDecimal;
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @Entity
-public class PhanHoiAI {
+@Table(name = "PhanHoiAI")
+public class AiFeedback {
 
     @Id
+    @Column(name = "MaPhanHoi")
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-     Integer maPhanHoi;
+    Integer id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "MaTinNhan", referencedColumnName = "MaTinNhan",
-            foreignKey = @ForeignKey(name = "FK_PhanHoiAI_TinNhan"))
-     TinNhan maTinNhan;
+            foreignKey = @ForeignKey(name = "FK_ai_feedbacks_messages"))
+    Message message;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "MaNguoiDung", referencedColumnName = "MaNguoiDung",
-            foreignKey = @ForeignKey(name = "FK_PhanHoiAI_NguoiDung"))
-    NguoiDung maNguoiDung;
+            foreignKey = @ForeignKey(name = "FK_ai_feedbacks_users"))
+    User user;
 
     @Column(name = "DanhGia")
-     String danhGia;
+    String rating;
 
     @Column(name = "DiemChinhXac")
-     Boolean diemChinhXac;
+    Boolean isAccurate;
 
     @Column(name = "BinhLuan", columnDefinition = "TEXT")
-     String binhLuan;
+    String comment;
 
     @Column(name = "NgayTao")
-     LocalDateTime ngayTao;
+    LocalDateTime createdAt;
 
 }

@@ -15,8 +15,18 @@ spring:
       naming:
         physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
     show-sql: true
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 25MB
+file:
+  upload-dir: ./uploads
 jwt:
   signerkey: "5211ab3263d6c56a7af652d9a49999c90376ec1dc7819e8af80ea8f7fef05691"
   expiration-days: 7
   valid-duration: 3600 # in second
   refreshable-duration: 36000 # in second(demo)
+# AI Service
+ai:
+  service:
+    base-url: ${AI_SERVICE_BASE_URL:http://localhost:8000}

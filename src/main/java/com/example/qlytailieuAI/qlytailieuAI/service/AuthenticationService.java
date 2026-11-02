@@ -12,15 +12,15 @@ import com.example.qlytailieuAI.qlytailieuAI.dto.request.*;
 import com.example.qlytailieuAI.qlytailieuAI.dto.response.AuthenticationResponse;
 import com.example.qlytailieuAI.qlytailieuAI.dto.response.IntrospectResponse;
 import com.example.qlytailieuAI.qlytailieuAI.dto.response.UserResponse;
-import com.example.qlytailieuAI.qlytailieuAI.entity.NguoiDung;
-import com.example.qlytailieuAI.qlytailieuAI.entity.TokenDaThuHoi;
-import com.example.qlytailieuAI.qlytailieuAI.entity.VaiTro;
+import com.example.qlytailieuAI.qlytailieuAI.entity.Role;
+import com.example.qlytailieuAI.qlytailieuAI.entity.RevokedToken;
+import com.example.qlytailieuAI.qlytailieuAI.entity.User;
 import com.example.qlytailieuAI.qlytailieuAI.exception.AppException;
 import com.example.qlytailieuAI.qlytailieuAI.exception.ErrorCode;
 import com.example.qlytailieuAI.qlytailieuAI.mapper.UserMapper;
-import com.example.qlytailieuAI.qlytailieuAI.repository.NguoiDungRepository;
-import com.example.qlytailieuAI.qlytailieuAI.repository.TokenDaThuHoiRepository;
-import com.example.qlytailieuAI.qlytailieuAI.repository.VaiTroRepository;
+import com.example.qlytailieuAI.qlytailieuAI.repository.RevokedTokenRepository;
+import com.example.qlytailieuAI.qlytailieuAI.repository.RoleRepository;
+import com.example.qlytailieuAI.qlytailieuAI.repository.UserRepository;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -39,9 +39,9 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class AuthenticationService {
-    NguoiDungRepository nguoiDungRepository;
-    VaiTroRepository vaiTroRepository;
-    TokenDaThuHoiRepository tokenDaThuHoiRepository;
+    UserRepository userRepository;
+    RoleRepository roleRepository;
+    RevokedTokenRepository revokedTokenRepository;
     UserMapper userMapper;
     PasswordEncoder passwordEncoder;
     JwtService jwtService;
@@ -49,22 +49,22 @@ public class AuthenticationService {
     @Transactional
     public UserResponse register(RegisterRequest request) {
         String email = request.getEmail().trim().toLowerCase(Locale.ROOT);
-        if (nguoiDungRepository.existsByEmailIgnoreCase(email)) {
+        if (userRepository.existsByEmailIgnoreCase(email)) {
             throw new AppException(ErrorCode.USER_EXISTED);
         }
 
-        VaiTro userRole = vaiTroRepository.findByTenVaiTroIgnoreCase(PredefinedRole.USER_ROLE)
+        Role userRole = roleRepository.findByNameIgnoreCase(PredefinedRole.USER_ROLE)
                 .orElseThrow(() -> new AppException(ErrorCode.ROLE_NOT_EXISTED));
 
-        NguoiDung user = new NguoiDung();
-        user.setHoTen(request.getFullName().trim());
+        User user = new User();
+        user.setFullName(request.getFullName().trim());
         user.setEmail(email);
-        user.setMatKhau(passwordEncoder.encode(request.getPassword()));
-        user.setTrangThai("ACTIVE");
-        user.setVaiTro(userRole);
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setStatus("ACTIVE");
+        user.setRole(userRole);
 
         try {
-            return userMapper.toUserResponse(nguoiDungRepository.save(user));
+            return userMapper.toUserResponse(userRepository.save(user));
         } catch (DataIntegrityViolationException exception) {
             log.warn("Registration failed due to database constraint", exception);
             throw new AppException(ErrorCode.USER_EXISTED);
@@ -73,10 +73,10 @@ public class AuthenticationService {
 
     @Transactional(readOnly = true)
     public AuthenticationResponse login(AuthenticationRequest request) {
-        NguoiDung user = nguoiDungRepository.findByEmailIgnoreCase(request.getEmail().trim())
+        User user = userRepository.findByEmailIgnoreCase(request.getEmail().trim())
                 .orElseThrow(() -> new AppException(ErrorCode.INVALID_CREDENTIALS));
 
-        if (!passwordEncoder.matches(request.getPassword(), user.getMatKhau())) {
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new AppException(ErrorCode.INVALID_CREDENTIALS);
         }
         if (!isActive(user)) {
@@ -88,11 +88,11 @@ public class AuthenticationService {
     @Transactional
     public AuthenticationResponse refresh(RefreshRequest request) {
         JWTClaimsSet claims = readValidToken(request.getRefreshToken(), "refresh");
-        if (tokenDaThuHoiRepository.existsById(claims.getJWTID())) {
+        if (revokedTokenRepository.existsById(claims.getJWTID())) {
             throw new AppException(ErrorCode.TOKEN_INVALID);
         }
 
-        NguoiDung user = nguoiDungRepository.findByEmailIgnoreCase(claims.getSubject())
+        User user = userRepository.findByEmailIgnoreCase(claims.getSubject())
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
         if (!isActive(user)) {
             throw new AppException(ErrorCode.ACCOUNT_LOCKED);
@@ -117,21 +117,21 @@ public class AuthenticationService {
         }
         if (!"access".equals(claims.getStringClaim("token_type"))
                 || claims.getJWTID() == null
-                || tokenDaThuHoiRepository.existsById(claims.getJWTID())) {
+                || revokedTokenRepository.existsById(claims.getJWTID())) {
             return IntrospectResponse.builder().valid(false).build();
         }
 
-        NguoiDung user = nguoiDungRepository.findByEmailIgnoreCase(claims.getSubject()).orElse(null);
+        User user = userRepository.findByEmailIgnoreCase(claims.getSubject()).orElse(null);
         if (user == null || !isActive(user)) {
             return IntrospectResponse.builder().valid(false).build();
         }
         return IntrospectResponse.builder()
-                .valid(Objects.equals(claims.getStringClaim("scope"), toAuthority(user.getVaiTro().getTenVaiTro())))
+                .valid(Objects.equals(claims.getStringClaim("scope"), toAuthority(user.getRole().getName())))
                 .build();
     }
 
-    private AuthenticationResponse createAuthenticationResponse(NguoiDung user) {
-        String authority = toAuthority(user.getVaiTro().getTenVaiTro());
+    private AuthenticationResponse createAuthenticationResponse(User user) {
+        String authority = toAuthority(user.getRole().getName());
         String accessToken = jwtService.generateToken(user.getEmail(), authority, "access",
                 jwtService.getAccessTokenValidityInSeconds());
         String refreshToken = jwtService.generateToken(user.getEmail(), authority, "refresh",
@@ -178,10 +178,10 @@ public class AuthenticationService {
             String jti = claims.getJWTID();
             Date expirationTime = claims.getExpirationTime();
             if (jti != null && expirationTime != null && expirationTime.after(new Date())
-                    && !tokenDaThuHoiRepository.existsById(jti)) {
-                tokenDaThuHoiRepository.save(TokenDaThuHoi.builder()
+                    && !revokedTokenRepository.existsById(jti)) {
+                revokedTokenRepository.save(RevokedToken.builder()
                         .jti(jti)
-                        .ngayHetHan(Instant.ofEpochMilli(expirationTime.getTime()))
+                        .expiresAt(Instant.ofEpochMilli(expirationTime.getTime()))
                         .build());
             }
         } catch (RuntimeException exception) {
@@ -190,8 +190,8 @@ public class AuthenticationService {
         }
     }
 
-    private boolean isActive(NguoiDung user) {
-        return "ACTIVE".equalsIgnoreCase(user.getTrangThai());
+    private boolean isActive(User user) {
+        return "ACTIVE".equalsIgnoreCase(user.getStatus());
     }
 
     private String toAuthority(String roleName) {

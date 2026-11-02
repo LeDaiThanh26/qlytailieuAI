@@ -4,7 +4,7 @@ import java.nio.charset.StandardCharsets;
 
 import javax.crypto.spec.SecretKeySpec;
 
-import com.example.qlytailieuAI.qlytailieuAI.repository.TokenDaThuHoiRepository;
+import com.example.qlytailieuAI.qlytailieuAI.repository.RevokedTokenRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -17,11 +17,11 @@ import org.springframework.stereotype.Component;
 public class CustomJwtDecoder implements JwtDecoder {
 
     private final NimbusJwtDecoder nimbusJwtDecoder;
-    private final TokenDaThuHoiRepository invalidatedTokenRepository;
+    private final RevokedTokenRepository invalidatedTokenRepository;
 
     public CustomJwtDecoder(
             @Value("${jwt.signerkey}") String signerKey,
-            TokenDaThuHoiRepository invalidatedTokenRepository) {
+            RevokedTokenRepository invalidatedTokenRepository) {
 
         SecretKeySpec secretKeySpec = new SecretKeySpec(
                 signerKey.getBytes(StandardCharsets.UTF_8),
